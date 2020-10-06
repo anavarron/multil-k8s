@@ -1,0 +1,27 @@
+sudo: required
+services: 
+  - docker
+env:
+  global:
+    - SHA=$(git rev-parse HEAD)
+    - CLOUDSDK_CORE_DISABLE_PROMPTS=1
+before_install:
+  - openssl aes-256-cbc -K $encrypted_5679734b247e_key -iv $encrypted_5679734b247e_iv -in service-account-travis.json.enc -out service-account-travis.json -d
+  - curl https://sdk.cloud.google.com | bash > /dev/null; 
+  - source $HOME/google-cloud-sdk/path.bash.inc
+  - gcloud components update kubectl
+  - gcloud auth activate-service-account --key-file service-account-travis.json
+  - gcloud config set project apt-vine-291621
+  - gcloud config set compute/zone us-central1-c	
+  - gcloud container clusters get-credentials cluster-1
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER-USERNAME" --password-stdin
+  - docker build -t anavarron/react-test -f ./client/Dockerfile.dev ./client
+
+script:
+  - docker run -e CI=true anavarron/react-test npm test -- --coverage
+
+deploy:
+  provider: script
+  script: bash ./deploy.sh
+  on:
+    branch: master
